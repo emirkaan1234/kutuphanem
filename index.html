@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Okul Kütüphane Sistemi</title>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f2f2f2;
+        padding: 20px;
+    }
+    h1 {
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    h2 {
+        text-align: center;
+        font-weight: normal;
+        color: #555;
+        margin-top: 0;
+    }
+    input, button {
+        padding: 8px;
+        margin: 4px;
+    }
+    .container {
+        display: flex;
+        gap: 20px;
+        margin-top: 20px;
+    }
+    .box {
+        background: white;
+        padding: 10px;
+        width: 33%;
+        border-radius: 6px;
+    }
+    ul {
+        list-style: none;
+        padding: 0;
+    }
+    li {
+        padding: 6px;
+        border-bottom: 1px solid #ddd;
+    }
+    .late {
+        color: red;
+        font-weight: bold;
+    }
+</style>
+</head>
+
+<body>
+
+<h1>📚 Okul Kütüphane Sistemi</h1>
+<h2>🏫 Atatürk Ortaokulu</h2>
+
+<input id="name" placeholder="Kitap Adı">
+<input id="author" placeholder="Yazar">
+<input id="year" placeholder="Yıl">
+<input id="person" placeholder="Alan Kişi">
+<button onclick="addBook()">Ekle</button>
+
+<br>
+<input id="search" placeholder="🔍 Kitap ara..." onkeyup="render()">
+
+<div class="container">
+    <div class="box">
+        <h3>📖 Kütüphanedeki Kitaplar</h3>
+        <ul id="books"></ul>
+    </div>
+
+    <div class="box">
+        <h3>📕 Ödünç Verilenler</h3>
+        <ul id="borrowed"></ul>
+    </div>
+
+    <div class="box">
+        <h3>⏰ Geciken Kitaplar</h3>
+        <ul id="lateBooks"></ul>
+    </div>
+</div>
+
+<script>
+const booksEl = document.getElementById("books");
+const borrowedEl = document.getElementById("borrowed");
+const lateEl = document.getElementById("lateBooks");
+
+const nameInput = document.getElementById("name");
+const authorInput = document.getElementById("author");
+const yearInput = document.getElementById("year");
+const personInput = document.getElementById("person");
+const searchInput = document.getElementById("search");
+
+let books = JSON.parse(localStorage.getItem("books")) || [];
+let borrowed = JSON.parse(localStorage.getItem("borrowed")) || [];
+
+function save() {
+    localStorage.setItem("books", JSON.stringify(books));
+    localStorage.setItem("borrowed", JSON.stringify(borrowed));
+}
+
+function addBook() {
+    if (!nameInput.value) return;
+
+    books.push({
+        name: nameInput.value,
+        author: authorInput.value,
+        year: yearInput.value
+    });
+
+    nameInput.value = "";
+    authorInput.value = "";
+    yearInput.value = "";
+
+    save();
+    render();
+}
+
+function borrowBook(index) {
+    if (!personInput.value) {
+        alert("Alan kişi yaz");
+        return;
+    }
+
+    let book = books.splice(index, 1)[0];
+    book.person = personInput.value;
+    book.borrowDate = new Date().toISOString();
+    book.returnDate = new Date(Date.now() + 30*24*60*60*1000).toISOString();
+
+    borrowed.push(book);
+    personInput.value = "";
+
+    save();
+    render();
+}
+
+function returnBook(index) {
+    let book = borrowed.splice(index, 1)[0];
+    books.push({
+        name: book.name,
+        author: book.author,
+        year: book.year
+    });
+
+    save();
+    render();
+}
+
+function deleteBook(index, type) {
+    if (!confirm("Silinsin mi?")) return;
+
+    if (type === "book") books.splice(index, 1);
+    else borrowed.splice(index, 1);
+
+    save();
+    render();
+}
+
+function render() {
+    booksEl.innerHTML = "";
+    borrowedEl.innerHTML = "";
+    lateEl.innerHTML = "";
+
+    const search = searchInput.value.toLowerCase();
+    const now = new Date();
+
+    books.forEach((b, i) => {
+        if (!b.name.toLowerCase().includes(search)) return;
+
+        booksEl.innerHTML += `
+        <li>
+            ${b.name} - ${b.author} (${b.year})
+            <button onclick="borrowBook(${i})">Ödünç</button>
+            <button onclick="deleteBook(${i}, 'book')">Sil</button>
+        </li>`;
+    });
+
+    borrowed.forEach((b, i) => {
+        if (!b.name.toLowerCase().includes(search)) return;
+
+        const isLate = now > new Date(b.returnDate);
+
+        borrowedEl.innerHTML += `
+        <li class="${isLate ? 'late' : ''}">
+            ${b.name} | ${b.person} | İade: ${b.returnDate.split("T")[0]}
+            <button onclick="returnBook(${i})">İade</button>
+            <button onclick="deleteBook(${i}, 'borrowed')">Sil</button>
+        </li>`;
+
+        if (isLate) {
+            lateEl.innerHTML += `
+            <li class="late">
+                ${b.name} | ${b.person}
+            </li>`;
+        }
+    });
+}
+
+render();
+</script>
+
+</body>
+</html>
